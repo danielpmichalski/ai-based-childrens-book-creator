@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Storybook Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ===================== BASE ===================== */
+:root {
+  --ink: #1a1208; --paper: #faf7f2; --cream: #f2ede3; --warm: #e8dfc8;
+  --accent: #c4622d; --accent-light: #f0ddd1; --accent-dark: #8b3d17;
+  --muted: #8a7e6e; --border: rgba(26,18,8,0.12); --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; }
+
+/* ===================== HEADER ===================== */
+header {
+  background: var(--ink); color: var(--paper);
+  padding: 15px 32px; display: flex; align-items: center; gap: 16px;
+  position: sticky; top: 0; z-index: 100; border-bottom: 3px solid var(--accent);
+}
+.logo { font-family: 'Playfair Display', serif; font-size: 21px; letter-spacing: -0.02em; }
+.logo span { color: var(--accent); font-style: italic; }
+.header-tabs { margin-left: auto; display: flex; gap: 4px; }
+.htab {
+  font-size: 12px; padding: 6px 14px; border-radius: 7px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.15); background: transparent;
+  color: rgba(250,247,242,0.6); font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+}
+.htab.active { background: var(--accent); color: white; border-color: transparent; }
+.htab:hover:not(.active) { background: rgba(255,255,255,0.08); color: var(--paper); }
+
+/* ===================== VIEWS ===================== */
+.view { display: none; min-height: calc(100vh - 58px); }
+.view.active { display: block; }
+#view-import { display: none; flex-direction: column; gap: 20px; }
+#view-import.active { display: flex; }
+
+/* ===================== PROMPT VIEW ===================== */
+#view-prompt { padding: 40px; max-width: 860px; margin: 0 auto; }
+.prompt-hero { margin-bottom: 32px; }
+.prompt-hero h1 { font-family: 'Playfair Display', serif; font-size: 30px; margin-bottom: 8px; }
+.prompt-hero p { color: var(--muted); font-size: 14px; line-height: 1.7; max-width: 560px; }
+.steps { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 32px; }
+.step-card { background: var(--cream); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.step-n { font-size: 11px; font-weight: 500; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+.step-card h3 { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.step-card p { font-size: 11.5px; color: var(--muted); line-height: 1.6; }
+.prompt-builder { background: var(--cream); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }
+.prompt-builder h2 { font-family: 'Playfair Display', serif; font-size: 18px; margin-bottom: 18px; }
+.fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field.full { grid-column: 1/-1; }
+label { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+input[type="text"], textarea, select {
+  padding: 8px 11px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--paper); color: var(--ink); font-family: 'DM Sans', sans-serif;
+  font-size: 13px; transition: border-color 0.2s; appearance: none;
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
+.char-rows { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.char-row {
+  display: grid; grid-template-columns: 130px 110px 1fr auto; gap: 8px; align-items: start;
+  background: var(--paper); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+}
+.char-row input, .char-row select { margin: 0; }
+.char-row textarea { margin: 0; min-height: 48px; font-size: 12px; }
+.remove-char { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; padding: 2px; line-height: 1; align-self: center; }
+.remove-char:hover { color: var(--accent); }
+.add-char-btn {
+  background: transparent; border: 1.5px dashed var(--border); border-radius: 8px;
+  color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 12px;
+  padding: 7px 14px; cursor: pointer; transition: all 0.15s; width: 100%;
+}
+.add-char-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.prompt-output {
+  background: #1a1208; color: #e8dfc8; border-radius: var(--radius);
+  padding: 20px 22px; font-family: monospace; font-size: 12.5px; line-height: 1.7;
+  white-space: pre-wrap; word-break: break-word; max-height: 500px; overflow-y: auto;
+}
+.prompt-output-wrap { position: relative; }
+.copy-prompt-btn {
+  position: absolute; top: 10px; right: 10px;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  color: #e8dfc8; border-radius: 6px; font-size: 11px; padding: 4px 10px;
+  cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.15s;
+}
+.copy-prompt-btn:hover { background: rgba(255,255,255,0.18); }
+.btn-generate-prompt {
+  background: var(--accent); color: white; border: none; border-radius: var(--radius);
+  padding: 12px 22px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s; margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+}
+.btn-generate-prompt:hover { background: var(--accent-dark); transform: translateY(-1px); }
+
+/* ===================== IMPORT VIEW ===================== */
+#view-import { max-width: 720px; margin: 0 auto; padding: 40px; }
+#view-import h1 { font-family: 'Playfair Display', serif; font-size: 28px; }
+#view-import > p { color: var(--muted); font-size: 13px; line-height: 1.7; }
+.import-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 28px; text-align: center; transition: all 0.2s; cursor: pointer; position: relative;
+}
+.import-zone.drag-over { border-color: var(--accent); background: var(--accent-light); }
+.import-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.import-zone-icon { font-size: 34px; margin-bottom: 8px; }
+.import-zone p { font-size: 13px; color: var(--muted); }
+.import-zone strong { color: var(--accent); }
+.or-divider { display: flex; align-items: center; gap: 12px; }
+.or-divider hr { flex:1; border:none; border-top: 1px solid var(--border); }
+.or-divider span { font-size: 12px; color: var(--muted); }
+#json-paste {
+  font-family: monospace; font-size: 12px; min-height: 160px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px; background: var(--cream); color: var(--ink); line-height: 1.6; resize: vertical;
+  width: 100%;
+}
+#json-paste:focus { outline: none; border-color: var(--accent); }
+.import-btn {
+  background: var(--accent); color: white; border: none; border-radius: var(--radius);
+  padding: 13px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s; width: 100%;
+}
+.import-btn:hover { background: var(--accent-dark); }
+.import-error { background: #fff5f5; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px; color: #991b1b; font-size: 13px; display: none; }
+.photo-attach-section { background: var(--cream); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.photo-attach-section h3 { font-family: 'Playfair Display', serif; font-size: 16px; margin-bottom: 6px; }
+.photo-attach-section p { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+.photo-char-rows { display: flex; flex-direction: column; gap: 10px; }
+.photo-char-row { display: flex; align-items: center; gap: 12px; }
+.photo-char-name { font-size: 13px; font-weight: 500; min-width: 100px; }
+.photo-thumb { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); }
+.photo-thumb-empty { width: 40px; height: 40px; border-radius: 8px; background: var(--warm); border: 1.5px dashed var(--border); display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; position: relative; overflow: hidden; flex-shrink: 0; }
+.photo-thumb-empty input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.photo-label { font-size: 11px; color: var(--muted); }
+.remove-photo-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; }
+
+/* ===================== BOOK VIEW ===================== */
+#view-book { display: none; }
+#view-book.active { display: block; }
+.book-header {
+  background: var(--ink); color: var(--paper);
+  padding: 24px 40px 20px; border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.book-title-out { font-family: 'Playfair Display', serif; font-size: 34px; line-height: 1.15; margin-bottom: 5px; }
+.book-tagline-out { font-family: 'Playfair Display', serif; font-style: italic; font-size: 15px; color: rgba(250,247,242,0.55); margin-bottom: 12px; }
+.book-meta-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.palette-row { display: flex; gap: 5px; }
+.swatch { width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.2); }
+.char-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.char-chip { background: rgba(255,255,255,0.1); color: rgba(250,247,242,0.85); font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 99px; display: flex; align-items: center; gap: 5px; }
+.char-chip img { width: 17px; height: 17px; border-radius: 50%; object-fit: cover; }
+
+/* progress bar */
+.progress-bar-wrap { background: var(--cream); border-bottom: 1px solid var(--border); padding: 10px 40px; display: flex; align-items: center; gap: 14px; }
+.progress-bar-wrap span { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.progress-bar { flex: 1; height: 6px; background: var(--warm); border-radius: 99px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.3s; }
+
+.book-toolbar {
+  padding: 10px 40px; background: var(--cream); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.toolbar-btn {
+  background: transparent; border: 1px solid var(--border); border-radius: 7px;
+  color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 12px;
+  padding: 6px 12px; cursor: pointer; transition: all 0.15s;
+}
+.toolbar-btn:hover { background: var(--warm); color: var(--ink); }
+.toolbar-btn.primary { background: var(--accent); color: white; border-color: transparent; }
+.toolbar-btn.primary:hover { background: var(--accent-dark); }
+.toolbar-sep { width: 1px; height: 18px; background: var(--border); }
+
+.pages-area { padding: 24px 40px; }
+.pages-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 18px; }
+
+/* ===================== PAGE CARD ===================== */
+.page-card { background: white; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: transform 0.15s, box-shadow 0.15s; }
+.page-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(26,18,8,0.07); }
+
+/* Image area — the key new piece */
+.page-img-area {
+  aspect-ratio: 4/3; position: relative; overflow: hidden;
+  background: var(--cream); cursor: pointer;
+}
+.page-img-area img.page-illustration {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+/* drop zone shown when no image */
+.page-drop-zone {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; color: var(--muted); font-size: 12px;
+  transition: background 0.2s;
+}
+.page-drop-zone::before {
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(45deg,transparent,transparent 12px,rgba(196,98,45,0.04) 12px,rgba(196,98,45,0.04) 13px);
+}
+.page-img-area.drag-over .page-drop-zone { background: rgba(196,98,45,0.12); }
+.page-img-area.has-image .page-drop-zone { display: none; }
+/* hidden file input */
+.page-img-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 3; }
+
+/* overlay controls shown on hover when image exists */
+.img-overlay {
+  position: absolute; inset: 0; background: rgba(26,18,8,0.5);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  opacity: 0; transition: opacity 0.2s; z-index: 2;
+}
+.page-img-area:hover .img-overlay { opacity: 1; }
+.img-overlay-btn {
+  background: rgba(250,247,242,0.9); border: none; border-radius: 7px;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+  color: var(--ink); padding: 7px 13px; cursor: pointer; transition: background 0.15s;
+}
+.img-overlay-btn:hover { background: white; }
+.img-overlay-btn.danger { background: rgba(252,165,165,0.9); color: #991b1b; }
+
+.page-badge { position: absolute; top: 8px; left: 8px; background: var(--ink); color: var(--paper); font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 99px; font-family: monospace; z-index: 4; pointer-events: none; }
+.mood-badge { position: absolute; top: 8px; right: 8px; background: var(--accent-light); color: var(--accent-dark); font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 99px; text-transform: capitalize; z-index: 4; pointer-events: none; }
+.img-done-badge { position: absolute; bottom: 8px; right: 8px; background: #166534; color: #bbf7d0; font-size: 10px; padding: 2px 8px; border-radius: 99px; z-index: 4; pointer-events: none; display: none; }
+.page-img-area.has-image .img-done-badge { display: block; }
+
+.char-refs { display: flex; gap: 5px; position: relative; }
+.char-refs img { width: 40px; height: 40px; border-radius: 7px; object-fit: cover; border: 2px solid white; }
+
+.page-body { padding: 13px; }
+.page-text { font-family: 'Playfair Display', serif; font-size: 14px; line-height: 1.75; color: var(--ink); margin-bottom: 11px; }
+.prompt-toggle { font-size: 11px; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 4px; margin-bottom: 7px; user-select: none; }
+.prompt-toggle:hover { color: var(--accent); }
+.prompt-toggle .arr { transition: transform 0.2s; display: inline-block; }
+.prompt-toggle.open .arr { transform: rotate(90deg); }
+.prompt-text-box { display: none; font-family: monospace; font-size: 11px; background: var(--cream); border: 1px solid var(--border); border-radius: 6px; padding: 9px 11px; line-height: 1.6; color: var(--ink); margin-bottom: 9px; white-space: pre-wrap; word-break: break-word; }
+.page-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn-openart { background: #1a1a2e; color: #e8dfc8; font-size: 11px; padding: 5px 10px; border-radius: 7px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: background 0.15s; white-space: nowrap; }
+.btn-openart:hover { background: #2d2d4e; }
+.btn-copy { background: transparent; border: 1px solid var(--border); border-radius: 7px; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 11px; padding: 4px 9px; cursor: pointer; transition: all 0.15s; }
+.btn-copy:hover { background: var(--warm); color: var(--ink); }
+
+.book-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 14px; text-align: center; color: var(--muted); }
+.book-empty-icon { font-size: 52px; opacity: 0.25; }
+.book-empty h2 { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--ink); opacity: 0.35; }
+.book-empty p { font-size: 13px; max-width: 280px; line-height: 1.7; }
+.book-empty-btn { background: var(--accent); color: white; border: none; border-radius: var(--radius); padding: 10px 20px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+
+/* ===================== PRINT / PDF ===================== */
+@media print {
+  @page { size: A4 landscape; margin: 0; }
+
+  /* hide everything except print pages */
+  header, .book-header, .book-toolbar, .progress-bar-wrap,
+  .page-actions, .prompt-toggle, .prompt-text-box,
+  .img-overlay, .page-drop-zone, .page-img-area input,
+  .book-empty, #view-prompt, #view-import,
+  .pages-area { display: none !important; }
+
+  body, html { background: white !important; margin: 0 !important; }
+
+  #view-book, #view-book.active { display: block !important; }
+  #book-content { display: block !important; }
+
+  /* Cover page */
+  .print-cover {
+    width: 297mm; height: 210mm;
+    display: flex !important;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    background: var(--ink) !important;
+    color: var(--paper) !important;
+    page-break-after: always;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-cover h1 { font-family: 'Playfair Display', serif; font-size: 42pt; color: var(--paper); }
+  .print-cover p  { font-family: 'Playfair Display', serif; font-style: italic; font-size: 16pt; color: rgba(250,247,242,0.6); margin-top: 10px; }
+  .print-cover .cover-accent { width: 60px; height: 4px; background: var(--accent); margin: 18px auto; }
+
+  /* Each print page */
+  .print-page {
+    width: 297mm; height: 210mm;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden;
+    page-break-after: always;
+    page-break-inside: avoid;
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-page .pp-image {
+    flex: 1;
+    overflow: hidden;
+    background: var(--cream) !important;
+  }
+  .print-page .pp-image img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .print-page .pp-no-image {
+    flex: 1; display: flex !important;
+    align-items: center; justify-content: center;
+    background: var(--cream) !important;
+    color: var(--muted) !important;
+    font-family: 'DM Sans', sans-serif; font-size: 11pt;
+  }
+  .print-page .pp-text {
+    flex-shrink: 0;
+    padding: 14mm 20mm 10mm;
+    background: white;
+    border-top: 3px solid var(--accent);
+    display: flex; align-items: baseline; justify-content: space-between; gap: 20mm;
+  }
+  .print-page .pp-text-body {
+    font-family: 'Playfair Display', serif; font-size: 16pt; line-height: 1.55; color: var(--ink);
+    flex: 1;
+  }
+  .print-page .pp-page-num {
+    font-family: monospace; font-size: 9pt; color: var(--muted); flex-shrink: 0;
+  }
+
+  /* hide screen-only pages grid */
+  .pages-grid { display: none !important; }
+}
+
+/* print pages hidden on screen */
+.print-pages { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Story<span>book</span> Studio</div>
+  <div class="header-tabs">
+    <button class="htab active" onclick="switchView('prompt')">① Prompt</button>
+    <button class="htab" onclick="switchView('import')">② Import JSON</button>
+    <button class="htab" onclick="switchView('book')">③ Book</button>
+  </div>
+</header>
+
+<!-- ============ VIEW 1: PROMPT ============ -->
+<div id="view-prompt" class="view active">
+  <div class="prompt-hero">
+    <h1>Build your Claude prompt</h1>
+    <p>Fill in the form → copy the prompt → paste into Claude → bring the JSON back to Import.</p>
+  </div>
+  <div class="steps">
+    <div class="step-card"><div class="step-n">Step 1</div><h3>Fill in the form</h3><p>Characters, setting, style, pages.</p></div>
+    <div class="step-card"><div class="step-n">Step 2</div><h3>Copy → paste into Claude</h3><p>Desktop, web, or mobile — any plan works.</p></div>
+    <div class="step-card"><div class="step-n">Step 3</div><h3>Import the JSON</h3><p>Paste Claude's response in the Import tab.</p></div>
+    <div class="step-card"><div class="step-n">Step 4</div><h3>Add images → Print PDF</h3><p>Upload OpenArt images per page, then print.</p></div>
+  </div>
+  <div class="prompt-builder">
+    <h2>Book details</h2>
+    <label style="margin-bottom:8px;">Characters</label>
+    <div class="char-rows" id="char-rows"></div>
+    <button class="add-char-btn" id="add-char-btn" onclick="addCharRow()">+ Add character</button>
+    <div style="height:16px;"></div>
+    <div class="fields-grid">
+      <div class="field full"><label>Book title</label><input type="text" id="p-title" placeholder='"Zara and the Cloud Dragon"'></div>
+      <div class="field full"><label>Setting</label><input type="text" id="p-setting" placeholder='"a floating island above the clouds"'></div>
+      <div class="field full"><label>Theme / moral</label><input type="text" id="p-theme" placeholder='"asking for help is brave"'></div>
+      <div class="field"><label>Target age</label>
+        <select id="p-age">
+          <option value="3–5">3–5 (picture book)</option>
+          <option value="6–8" selected>6–8 (early reader)</option>
+          <option value="9–12">9–12 (chapter + illustrations)</option>
+        </select>
+      </div>
+      <div class="field"><label>Tone</label>
+        <select id="p-tone"><option>whimsical</option><option>adventurous</option><option>cozy</option><option>funny</option><option>heartfelt</option></select>
+      </div>
+      <div class="field"><label>Art style</label>
+        <select id="p-style">
+          <option value="watercolor, soft washes, visible paper texture">Watercolor</option>
+          <option value="flat vector, bold outlines, Scandinavian children's book">Flat vector</option>
+          <option value="mid-century golden book, gouache, Mary Blair inspired">Golden book retro</option>
+          <option value="pen and ink with watercolor wash, Quentin Blake style">Ink & wash</option>
+          <option value="Studio Ghibli-inspired, painterly anime, lush backgrounds">Studio Ghibli</option>
+          <option value="paper collage, Eric Carle texture, bold color blocks">Paper collage</option>
+        </select>
+      </div>
+      <div class="field"><label>Pages</label>
+        <select id="p-pages"><option value="8">8 pages</option><option value="12" selected>12 pages</option><option value="16">16 pages</option></select>
+      </div>
+    </div>
+    <button class="btn-generate-prompt" onclick="buildPrompt()">✦ Build prompt</button>
+    <div class="prompt-output-wrap" id="prompt-output-wrap" style="display:none;">
+      <div class="prompt-output" id="prompt-output"></div>
+      <button class="copy-prompt-btn" onclick="copyBuiltPrompt()">Copy prompt</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ VIEW 2: IMPORT ============ -->
+<div id="view-import" class="view">
+  <h1>Import Claude's output</h1>
+  <p>Paste the JSON Claude returned, or drop the file. You can also attach reference photos for each character.</p>
+  <div class="import-error" id="import-error"></div>
+  <div class="photo-attach-section" id="photo-section" style="display:none;">
+    <h3>Character reference photos <span style="font-size:13px;font-weight:400;font-style:italic;color:var(--muted);">(optional)</span></h3>
+    <p>Photos are shown as thumbnail references on each page card — useful for dragging into OpenArt's Image Guidance slot. Nothing is uploaded anywhere.</p>
+    <div class="photo-char-rows" id="photo-char-rows"></div>
+  </div>
+  <div class="import-zone" id="import-zone">
+    <div class="import-zone-icon">📄</div>
+    <p><strong>Drop a JSON file here</strong> or click to browse</p>
+    <p style="margin-top:4px;font-size:11px;">Accepts .json files from Claude</p>
+    <input type="file" accept=".json,application/json" onchange="handleFileImport(event)">
+  </div>
+  <div class="or-divider"><hr><span>or paste directly</span><hr></div>
+  <textarea id="json-paste" placeholder='Paste Claude JSON here…&#10;{&#10;  "title": "...",&#10;  "pages": [...]&#10;}'></textarea>
+  <button class="import-btn" onclick="importJSON()">Import & render book →</button>
+</div>
+
+<!-- ============ VIEW 3: BOOK ============ -->
+<div id="view-book" class="view">
+  <div class="book-empty" id="book-empty">
+    <div class="book-empty-icon">📚</div>
+    <h2>No book yet</h2>
+    <p>Import your Claude JSON first to render the book here.</p>
+    <button class="book-empty-btn" onclick="switchView('import')">Go to Import →</button>
+  </div>
+  <div id="book-content" style="display:none;">
+    <div class="book-header">
+      <div class="book-title-out" id="out-title"></div>
+      <div class="book-tagline-out" id="out-tagline"></div>
+      <div class="book-meta-row">
+        <div class="palette-row" id="out-palette"></div>
+        <div class="char-chips" id="out-chars"></div>
+      </div>
+    </div>
+    <div class="progress-bar-wrap" id="progress-wrap" style="display:none;">
+      <span id="progress-label">0 / 0 images added</span>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="book-toolbar">
+      <button class="toolbar-btn" onclick="switchView('import')">← Re-import</button>
+      <div class="toolbar-sep"></div>
+      <button class="toolbar-btn" onclick="expandAllPrompts()">Expand prompts</button>
+      <button class="toolbar-btn" onclick="collapseAllPrompts()">Collapse</button>
+      <div class="toolbar-sep"></div>
+      <button class="toolbar-btn" onclick="copyAllPrompts()">Copy all prompts</button>
+      <button class="toolbar-btn" onclick="exportJSON()">Export JSON</button>
+      <div class="toolbar-sep"></div>
+      <button class="toolbar-btn primary" onclick="printBook()">🖨 Print / Save PDF</button>
+    </div>
+    <div class="pages-area">
+      <div class="pages-grid" id="pages-grid"></div>
+    </div>
+    <!-- Print-only pages injected here by JS -->
+    <div class="print-pages" id="print-pages"></div>
+  </div>
+</div>
+
+<script>
+// ===================== STATE =====================
+let charRows = [];
+let charPhotos = {};   // charName → dataUrl
+let pageImages = {};   // pageNum → dataUrl
+let bookData = null;
+let charIdCtr = 0;
+
+// ===================== NAV =====================
+function switchView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.htab').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelectorAll('.htab')[['prompt','import','book'].indexOf(v)].classList.add('active');
+}
+
+// ===================== INIT =====================
+window.addEventListener('DOMContentLoaded', () => {
+  addCharRow();
+  // drag-drop on import zone
+  const zone = document.getElementById('import-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0]; if (!file) return;
+    readFileAsText(file, text => { document.getElementById('json-paste').value = text; importJSON(); });
+  });
+});
+
+// ===================== PROMPT BUILDER =====================
+const ROLES = ['main character','sidekick','friend','mentor'];
+function addCharRow() {
+  if (charRows.length >= 3) { showToast('Max 3 characters'); return; }
+  const id = ++charIdCtr;
+  charRows.push({ id, name:'', role:'main character', desc:'' });
+  renderCharRows();
+}
+function removeCharRow(id) { charRows = charRows.filter(c => c.id !== id); renderCharRows(); }
+function renderCharRows() {
+  const cont = document.getElementById('char-rows');
+  cont.innerHTML = '';
+  charRows.forEach(c => {
+    const div = document.createElement('div'); div.className = 'char-row';
+    div.innerHTML = `
+      <input type="text" placeholder="Name" value="${escAttr(c.name)}" oninput="updateCharRow(${c.id},'name',this.value)">
+      <select onchange="updateCharRow(${c.id},'role',this.value)">
+        ${ROLES.map(r=>`<option${c.role===r?' selected':''}>${r}</option>`).join('')}
+      </select>
+      <textarea placeholder="Appearance: hair, skin tone, clothing, features…" oninput="updateCharRow(${c.id},'desc',this.value)">${escAttr(c.desc)}</textarea>
+      <button class="remove-char" onclick="removeCharRow(${c.id})">×</button>`;
+    cont.appendChild(div);
+  });
+  document.getElementById('add-char-btn').style.display = charRows.length >= 3 ? 'none' : 'block';
+}
+function updateCharRow(id, field, val) { const c = charRows.find(c=>c.id===id); if(c) c[field]=val; }
+
+function buildPrompt() {
+  const title   = document.getElementById('p-title').value.trim()   || 'The Magic Adventure';
+  const setting = document.getElementById('p-setting').value.trim() || 'an enchanted forest';
+  const theme   = document.getElementById('p-theme').value.trim()   || 'believe in yourself';
+  const age     = document.getElementById('p-age').value;
+  const tone    = document.getElementById('p-tone').value;
+  const style   = document.getElementById('p-style').value;
+  const pages   = document.getElementById('p-pages').value;
+  const named   = charRows.filter(c => c.name.trim());
+  if (!named.length) { alert('Add at least one character with a name.'); return; }
+  const charSpec = named.map(c =>
+    `  - ${c.name} (${c.role}): VISUAL_LOCK = "${c.desc.trim() || 'appearance to be creatively defined'}"`
+  ).join('\n');
+  const charJson = named.map(c =>
+    `    { "name": "${c.name}", "role": "${c.role}", "visual_lock": "${c.desc.trim() || c.name}" }`
+  ).join(',\n');
+
+  const prompt =
+`You are a professional children's book author and art director.
+Create a complete illustrated storybook with the spec below.
+Return ONLY valid JSON — no markdown fences, no explanation, no preamble.
+
+═══════════════════════════════
+BOOK SPEC
+═══════════════════════════════
+Title: "${title}"
+Setting: ${setting}
+Theme / moral: ${theme}
+Target age: ${age}
+Tone: ${tone}
+Art style: ${style}
+Pages: ${pages}
+
+Characters:
+${charSpec}
+
+═══════════════════════════════
+REQUIRED JSON STRUCTURE
+═══════════════════════════════
+{
+  "title": "...",
+  "tagline": "one evocative sentence",
+  "characters": [
+${charJson}
+  ],
+  "color_palette": ["#hex1","#hex2","#hex3","#hex4"],
+  "pages": [
+    {
+      "page": 1,
+      "text": "page text — max 30 words, natural read-aloud rhythm",
+      "illustration_prompt": "Self-contained image generation prompt, 50–70 words. MUST copy each character's VISUAL_LOCK verbatim. Describe action, environment, lighting, mood. End with: ${style}, children's picture book illustration, safe for all ages, no text or lettering.",
+      "mood": "one word",
+      "characters_on_page": ["CharacterName"]
+    }
+  ]
+}
+
+═══════════════════════════════
+RULES
+═══════════════════════════════
+- Return exactly ${pages} page objects
+- illustration_prompt is fully self-contained — paste-ready for an image generator
+- Copy each character's VISUAL_LOCK phrase EXACTLY into every illustration_prompt they appear in
+- Pacing: rising tension by 60%, climax at 75%, resolution at 90%, warmth at 100%
+- color_palette: 4 hex codes that match the mood
+- page text: max 30 words, age-appropriate, poetic rhythm`;
+
+  const wrap = document.getElementById('prompt-output-wrap');
+  document.getElementById('prompt-output').textContent = prompt;
+  wrap.style.display = 'block';
+  wrap.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+function copyBuiltPrompt() {
+  navigator.clipboard.writeText(document.getElementById('prompt-output').textContent)
+    .then(() => showToast('Prompt copied! Paste it into Claude.'));
+}
+
+// ===================== IMPORT =====================
+function handleFileImport(e) {
+  const file = e.target.files[0]; if (!file) return;
+  readFileAsText(file, text => { document.getElementById('json-paste').value = text; importJSON(); });
+}
+function readFileAsText(file, cb) {
+  const r = new FileReader(); r.onload = e => cb(e.target.result); r.readAsText(file);
+}
+function importJSON() {
+  const raw = document.getElementById('json-paste').value.trim();
+  const errEl = document.getElementById('import-error');
+  errEl.style.display = 'none';
+  let parsed;
+  try {
+    parsed = JSON.parse(raw.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/g,'').trim());
+  } catch(e) { errEl.textContent = '⚠ Could not parse JSON: '+e.message; errEl.style.display='block'; return; }
+  if (!parsed.pages || !Array.isArray(parsed.pages)) {
+    errEl.textContent = '⚠ JSON must have a "pages" array.'; errEl.style.display='block'; return;
+  }
+  bookData = parsed;
+  pageImages = {}; // reset images on new import
+  renderPhotoSection(parsed.characters || []);
+  showToast('Imported! Attach photos if you like, then go to Book.');
+  setTimeout(() => { switchView('book'); renderBook(parsed); }, 350);
+}
+
+function renderPhotoSection(chars) {
+  const sec = document.getElementById('photo-section');
+  const rows = document.getElementById('photo-char-rows');
+  if (!chars.length) { sec.style.display='none'; return; }
+  sec.style.display = 'block'; rows.innerHTML = '';
+  chars.forEach(c => {
+    const row = document.createElement('div'); row.className = 'photo-char-row';
+    const has = !!charPhotos[c.name];
+    row.innerHTML = `
+      <div class="photo-char-name">${escHtml(c.name)}</div>
+      ${has
+        ? `<img class="photo-thumb" src="${charPhotos[c.name]}">`
+        : `<div class="photo-thumb-empty">📷<input type="file" accept="image/*" onchange="attachCharPhoto(event,'${escAttr(c.name)}')"></div>`}
+      <div class="photo-label">${has ? '✓ attached' : 'click to upload'}</div>
+      ${has ? `<button class="remove-photo-btn" onclick="detachCharPhoto('${escAttr(c.name)}')">✕</button>` : ''}`;
+    rows.appendChild(row);
+  });
+}
+function attachCharPhoto(e, name) {
+  const file = e.target.files[0]; if (!file) return;
+  readFileAsDataUrl(file, url => {
+    charPhotos[name] = url;
+    renderPhotoSection(bookData?.characters || []);
+    if (bookData) renderBook(bookData);
+    showToast('Photo attached for '+name);
+  });
+}
+function detachCharPhoto(name) {
+  delete charPhotos[name];
+  renderPhotoSection(bookData?.characters || []);
+  if (bookData) renderBook(bookData);
+}
+
+// ===================== RENDER BOOK =====================
+function renderBook(book) {
+  document.getElementById('book-empty').style.display = 'none';
+  document.getElementById('book-content').style.display = 'block';
+  document.getElementById('out-title').textContent = book.title || '';
+  document.getElementById('out-tagline').textContent = book.tagline || '';
+
+  const palEl = document.getElementById('out-palette'); palEl.innerHTML = '';
+  (book.color_palette||[]).forEach(hex => {
+    const s = document.createElement('div'); s.className='swatch'; s.style.background=hex; s.title=hex; palEl.appendChild(s);
+  });
+
+  const charEl = document.getElementById('out-chars'); charEl.innerHTML = '';
+  (book.characters||[]).forEach(c => {
+    const chip = document.createElement('div'); chip.className='char-chip';
+    chip.innerHTML = (charPhotos[c.name]?`<img src="${charPhotos[c.name]}" alt="">`:'')+escHtml(c.name);
+    chip.title = c.visual_lock||''; charEl.appendChild(chip);
+  });
+
+  const grid = document.getElementById('pages-grid'); grid.innerHTML = '';
+  (book.pages||[]).forEach(p => {
+    const card = document.createElement('div'); card.className = 'page-card';
+    const prompt = buildPromptForPage(p);
+    const pagePhotos = (p.characters_on_page||[]).map(n=>charPhotos[n]).filter(Boolean);
+    const hasImg = !!pageImages[p.page];
+
+    card.innerHTML = `
+      <div class="page-img-area${hasImg?' has-image':''}" id="img-area-${p.page}"
+           ondragover="imgDragOver(event,${p.page})" ondragleave="imgDragLeave(event,${p.page})" ondrop="imgDrop(event,${p.page})">
+        <span class="page-badge">Page ${p.page}</span>
+        ${p.mood?`<span class="mood-badge">${p.mood}</span>`:''}
+        <span class="img-done-badge">✓ image added</span>
+        ${hasImg ? `<img class="page-illustration" src="${pageImages[p.page]}" alt="page ${p.page}">` : ''}
+        <div class="page-drop-zone">
+          ${pagePhotos.length
+            ? `<div class="char-refs">${pagePhotos.map(u=>`<img src="${u}">`).join('')}</div>
+               <span style="position:relative;font-size:11px;opacity:0.6;">drop/click to add illustration</span>`
+            : `<svg width="32" height="32" viewBox="0 0 40 40" fill="none" opacity="0.25" style="position:relative"><rect x="4" y="4" width="32" height="32" rx="6" stroke="#8a7e6e" stroke-width="1.5"/><circle cx="14" cy="15" r="4" stroke="#8a7e6e" stroke-width="1.5"/><path d="M4 28 L12 20 L20 26 L28 18 L36 26" stroke="#8a7e6e" stroke-width="1.5" fill="none"/></svg>
+               <span style="position:relative;font-size:11px;opacity:0.5;">drop or click to add illustration</span>`}
+        </div>
+        ${hasImg ? `<div class="img-overlay">
+          <button class="img-overlay-btn" onclick="triggerImgUpload(${p.page})">Replace</button>
+          <button class="img-overlay-btn danger" onclick="removePageImage(${p.page})">Remove</button>
+        </div>` : ''}
+        <input type="file" accept="image/*" onchange="handlePageImageUpload(event,${p.page})" id="img-input-${p.page}">
+      </div>
+      <div class="page-body">
+        <div class="page-text">${escHtml(p.text)}</div>
+        <div class="prompt-toggle" onclick="togglePrompt(this)"><span class="arr">▶</span> Image prompt</div>
+        <div class="prompt-text-box">${escHtml(prompt)}</div>
+        <div class="page-actions">
+          <a href="${openartUrl(prompt)}" target="_blank" class="btn-openart">🍌 Open in OpenArt</a>
+          <button class="btn-copy" onclick="copyText(this,'${escJs(prompt)}')">Copy prompt</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  updateProgress();
+  rebuildPrintPages();
+}
+
+// ===================== PAGE IMAGE HANDLING =====================
+function handlePageImageUpload(e, pageNum) {
+  const file = e.target.files[0]; if (!file) return;
+  readFileAsDataUrl(file, url => {
+    pageImages[pageNum] = url;
+    renderBook(bookData);
+    showToast('Image added for page '+pageNum);
+  });
+}
+function triggerImgUpload(pageNum) {
+  document.getElementById('img-input-'+pageNum)?.click();
+}
+function removePageImage(pageNum) {
+  delete pageImages[pageNum];
+  renderBook(bookData);
+}
+
+// drag-drop onto page card image area
+function imgDragOver(e, pageNum) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('img-area-'+pageNum)?.classList.add('drag-over');
+}
+function imgDragLeave(e, pageNum) {
+  document.getElementById('img-area-'+pageNum)?.classList.remove('drag-over');
+}
+function imgDrop(e, pageNum) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('img-area-'+pageNum)?.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0]; if (!file || !file.type.startsWith('image/')) return;
+  readFileAsDataUrl(file, url => {
+    pageImages[pageNum] = url;
+    renderBook(bookData);
+    showToast('Image added for page '+pageNum);
+  });
+}
+
+function updateProgress() {
+  if (!bookData?.pages) return;
+  const total = bookData.pages.length;
+  const done = Object.keys(pageImages).length;
+  const pct = total > 0 ? Math.round(done/total*100) : 0;
+  const wrap = document.getElementById('progress-wrap');
+  wrap.style.display = total > 0 ? 'flex' : 'none';
+  document.getElementById('progress-label').textContent = `${done} / ${total} images added`;
+  document.getElementById('progress-fill').style.width = pct+'%';
+  document.getElementById('progress-pct').textContent = pct+'%';
+}
+
+// ===================== PRINT / PDF =====================
+function rebuildPrintPages() {
+  const container = document.getElementById('print-pages');
+  container.innerHTML = '';
+  if (!bookData) return;
+
+  // Cover
+  const cover = document.createElement('div');
+  cover.className = 'print-cover';
+  cover.innerHTML = `
+    <h1>${escHtml(bookData.title||'')}</h1>
+    <div class="cover-accent"></div>
+    <p>${escHtml(bookData.tagline||'')}</p>`;
+  container.appendChild(cover);
+
+  // Pages
+  (bookData.pages||[]).forEach(p => {
+    const pg = document.createElement('div');
+    pg.className = 'print-page';
+    const img = pageImages[p.page];
+    pg.innerHTML = `
+      <div class="${img?'pp-image':'pp-no-image'}">
+        ${img ? `<img src="${img}" alt="page ${p.page}">` : 'No illustration added yet'}
+      </div>
+      <div class="pp-text">
+        <div class="pp-text-body">${escHtml(p.text)}</div>
+        <div class="pp-page-num">${p.page}</div>
+      </div>`;
+    container.appendChild(pg);
+  });
+}
+
+function printBook() {
+  rebuildPrintPages();
+  setTimeout(() => window.print(), 100);
+}
+
+// ===================== TOOLBAR =====================
+function buildPromptForPage(p) {
+  return `${p.illustration_prompt} Warm soft lighting. Generous negative space for text overlay. 4:3 landscape format. No text, no watermarks, no speech bubbles. Safe for all ages.`;
+}
+function openartUrl(prompt) {
+  return `https://openart.ai/image/create?prompt=${encodeURIComponent(prompt.substring(0,500))}`;
+}
+function expandAllPrompts() {
+  document.querySelectorAll('.prompt-toggle').forEach(el => { el.classList.add('open'); el.nextElementSibling.style.display='block'; });
+}
+function collapseAllPrompts() {
+  document.querySelectorAll('.prompt-toggle').forEach(el => { el.classList.remove('open'); el.nextElementSibling.style.display='none'; });
+}
+function copyAllPrompts() {
+  if (!bookData) return;
+  const all = (bookData.pages||[]).map(p=>`=== Page ${p.page} ===\n${buildPromptForPage(p)}`).join('\n\n');
+  navigator.clipboard.writeText(all).then(() => showToast('All '+bookData.pages.length+' prompts copied!'));
+}
+function exportJSON() {
+  if (!bookData) return;
+  const blob = new Blob([JSON.stringify(bookData,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (bookData.title||'storybook').replace(/\s+/g,'_')+'.json';
+  a.click();
+}
+
+// ===================== UTILS =====================
+function togglePrompt(el) {
+  el.classList.toggle('open');
+  el.nextElementSibling.style.display = el.nextElementSibling.style.display==='block' ? 'none' : 'block';
+}
+function readFileAsDataUrl(file, cb) {
+  const r = new FileReader(); r.onload = e => cb(e.target.result); r.readAsDataURL(file);
+}
+function copyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => { const o=btn.textContent; btn.textContent='✓'; setTimeout(()=>btn.textContent=o,1600); });
+}
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function escJs(s)   { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n'); }
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1a1208;color:#faf7f2;padding:7px 18px;border-radius:99px;font-size:12px;z-index:9999;opacity:0;transition:opacity 0.2s;pointer-events:none;white-space:nowrap;';
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.style.opacity='1');
+  setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 2400);
+}
+</script>
+</body>
+</html>
