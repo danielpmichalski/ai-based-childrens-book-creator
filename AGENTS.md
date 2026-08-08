@@ -38,7 +38,7 @@ time. There is no routing/URL state — reloading the page resets everything.
 
 ### View 1 — `#view-prompt` ("① Prompt")
 A form (`.prompt-builder`) for book metadata: title, setting, theme, target
-age, tone, art style, page count, and up to 3 characters (name, role,
+age, tone, art style, page count, and any number of characters (name, role,
 appearance description). `buildPrompt()` assembles all of this into one large
 text prompt instructing an LLM to return a strict JSON storybook structure
 (see "JSON book schema" below), and renders it into `#prompt-output`.
@@ -46,7 +46,7 @@ text prompt instructing an LLM to return a strict JSON storybook structure
 Claude (or any capable LLM) themselves, outside the app.
 
 Character state lives in the `charRows` array (`{id, name, role, desc}`),
-capped at 3, managed by `addCharRow`/`removeCharRow`/`updateCharRow`/
+uncapped, managed by `addCharRow`/`removeCharRow`/`updateCharRow`/
 `renderCharRows`.
 
 ### View 2 — `#view-import` ("② Import JSON")

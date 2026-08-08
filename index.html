@@ -489,7 +489,6 @@ window.addEventListener('DOMContentLoaded', () => {
 // ===================== PROMPT BUILDER =====================
 const ROLES = ['main character','sidekick','friend','mentor'];
 function addCharRow() {
-  if (charRows.length >= 3) { showToast('Max 3 characters'); return; }
   const id = ++charIdCtr;
   charRows.push({ id, name:'', role:'main character', desc:'' });
   renderCharRows();
@@ -509,7 +508,6 @@ function renderCharRows() {
       <button class="remove-char" onclick="removeCharRow(${c.id})">×</button>`;
     cont.appendChild(div);
   });
-  document.getElementById('add-char-btn').style.display = charRows.length >= 3 ? 'none' : 'block';
 }
 function updateCharRow(id, field, val) { const c = charRows.find(c=>c.id===id); if(c) c[field]=val; }
 
