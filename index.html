@@ -126,17 +126,6 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 }
 .import-btn:hover { background: var(--accent-dark); }
 .import-error { background: #fff5f5; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px; color: #991b1b; font-size: 13px; display: none; }
-.photo-attach-section { background: var(--cream); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
-.photo-attach-section h3 { font-family: 'Playfair Display', serif; font-size: 16px; margin-bottom: 6px; }
-.photo-attach-section p { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
-.photo-char-rows { display: flex; flex-direction: column; gap: 10px; }
-.photo-char-row { display: flex; align-items: center; gap: 12px; }
-.photo-char-name { font-size: 13px; font-weight: 500; min-width: 100px; }
-.photo-thumb { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); }
-.photo-thumb-empty { width: 40px; height: 40px; border-radius: 8px; background: var(--warm); border: 1.5px dashed var(--border); display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; position: relative; overflow: hidden; flex-shrink: 0; }
-.photo-thumb-empty input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.photo-label { font-size: 11px; color: var(--muted); }
-.remove-photo-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; }
 
 /* ===================== BOOK VIEW ===================== */
 #view-book { display: none; }
@@ -152,7 +141,6 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 .swatch { width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.2); }
 .char-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .char-chip { background: rgba(255,255,255,0.1); color: rgba(250,247,242,0.85); font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 99px; display: flex; align-items: center; gap: 5px; }
-.char-chip img { width: 17px; height: 17px; border-radius: 50%; object-fit: cover; }
 
 /* progress bar */
 .progress-bar-wrap { background: var(--cream); border-bottom: 1px solid var(--border); padding: 10px 40px; display: flex; align-items: center; gap: 14px; }
@@ -225,11 +213,10 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 .img-done-badge { position: absolute; bottom: 8px; right: 8px; background: #166534; color: #bbf7d0; font-size: 10px; padding: 2px 8px; border-radius: 99px; z-index: 4; pointer-events: none; display: none; }
 .page-img-area.has-image .img-done-badge { display: block; }
 
-.char-refs { display: flex; gap: 5px; position: relative; }
-.char-refs img { width: 40px; height: 40px; border-radius: 7px; object-fit: cover; border: 2px solid white; }
-
 .page-body { padding: 13px; }
 .page-text { font-family: 'Playfair Display', serif; font-size: 14px; line-height: 1.75; color: var(--ink); margin-bottom: 11px; }
+.page-chars { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+.page-char-tag { background: var(--accent-light); color: var(--accent-dark); font-size: 10.5px; font-weight: 500; padding: 2px 9px; border-radius: 99px; }
 .prompt-toggle { font-size: 11px; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 4px; margin-bottom: 7px; user-select: none; }
 .prompt-toggle:hover { color: var(--accent); }
 .prompt-toggle .arr { transition: transform 0.2s; display: inline-block; }
@@ -398,13 +385,8 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 <!-- ============ VIEW 2: IMPORT ============ -->
 <div id="view-import" class="view">
   <h1>Import Claude's output</h1>
-  <p>Paste the JSON Claude returned, or drop the file. You can also attach reference photos for each character.</p>
+  <p>Paste the JSON Claude returned, or drop the file.</p>
   <div class="import-error" id="import-error"></div>
-  <div class="photo-attach-section" id="photo-section" style="display:none;">
-    <h3>Character reference photos <span style="font-size:13px;font-weight:400;font-style:italic;color:var(--muted);">(optional)</span></h3>
-    <p>Photos are shown as thumbnail references on each page card — useful for dragging into OpenArt's Image Guidance slot. Nothing is uploaded anywhere.</p>
-    <div class="photo-char-rows" id="photo-char-rows"></div>
-  </div>
   <div class="import-zone" id="import-zone">
     <div class="import-zone-icon">📄</div>
     <p><strong>Drop a JSON file here</strong> or click to browse</p>
@@ -459,7 +441,6 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 <script>
 // ===================== STATE =====================
 let charRows = [];
-let charPhotos = {};   // charName → dataUrl
 let pageImages = {};   // pageNum → dataUrl
 let bookData = null;
 let charIdCtr = 0;
@@ -609,42 +590,8 @@ function importJSON() {
   }
   bookData = parsed;
   pageImages = {}; // reset images on new import
-  renderPhotoSection(parsed.characters || []);
-  showToast('Imported! Attach photos if you like, then go to Book.');
+  showToast('Imported! Head to Book to add illustrations.');
   setTimeout(() => { switchView('book'); renderBook(parsed); }, 350);
-}
-
-function renderPhotoSection(chars) {
-  const sec = document.getElementById('photo-section');
-  const rows = document.getElementById('photo-char-rows');
-  if (!chars.length) { sec.style.display='none'; return; }
-  sec.style.display = 'block'; rows.innerHTML = '';
-  chars.forEach(c => {
-    const row = document.createElement('div'); row.className = 'photo-char-row';
-    const has = !!charPhotos[c.name];
-    row.innerHTML = `
-      <div class="photo-char-name">${escHtml(c.name)}</div>
-      ${has
-        ? `<img class="photo-thumb" src="${charPhotos[c.name]}">`
-        : `<div class="photo-thumb-empty">📷<input type="file" accept="image/*" onchange="attachCharPhoto(event,'${escAttr(c.name)}')"></div>`}
-      <div class="photo-label">${has ? '✓ attached' : 'click to upload'}</div>
-      ${has ? `<button class="remove-photo-btn" onclick="detachCharPhoto('${escAttr(c.name)}')">✕</button>` : ''}`;
-    rows.appendChild(row);
-  });
-}
-function attachCharPhoto(e, name) {
-  const file = e.target.files[0]; if (!file) return;
-  readFileAsDataUrl(file, url => {
-    charPhotos[name] = url;
-    renderPhotoSection(bookData?.characters || []);
-    if (bookData) renderBook(bookData);
-    showToast('Photo attached for '+name);
-  });
-}
-function detachCharPhoto(name) {
-  delete charPhotos[name];
-  renderPhotoSection(bookData?.characters || []);
-  if (bookData) renderBook(bookData);
 }
 
 // ===================== RENDER BOOK =====================
@@ -662,7 +609,7 @@ function renderBook(book) {
   const charEl = document.getElementById('out-chars'); charEl.innerHTML = '';
   (book.characters||[]).forEach(c => {
     const chip = document.createElement('div'); chip.className='char-chip';
-    chip.innerHTML = (charPhotos[c.name]?`<img src="${charPhotos[c.name]}" alt="">`:'')+escHtml(c.name);
+    chip.textContent = c.name;
     chip.title = c.visual_lock||''; charEl.appendChild(chip);
   });
 
@@ -670,7 +617,6 @@ function renderBook(book) {
   (book.pages||[]).forEach(p => {
     const card = document.createElement('div'); card.className = 'page-card';
     const prompt = buildPromptForPage(p);
-    const pagePhotos = (p.characters_on_page||[]).map(n=>charPhotos[n]).filter(Boolean);
     const hasImg = !!pageImages[p.page];
 
     card.innerHTML = `
@@ -681,11 +627,8 @@ function renderBook(book) {
         <span class="img-done-badge">✓ image added</span>
         ${hasImg ? `<img class="page-illustration" src="${pageImages[p.page]}" alt="page ${p.page}">` : ''}
         <div class="page-drop-zone">
-          ${pagePhotos.length
-            ? `<div class="char-refs">${pagePhotos.map(u=>`<img src="${u}">`).join('')}</div>
-               <span style="position:relative;font-size:11px;opacity:0.6;">drop/click to add illustration</span>`
-            : `<svg width="32" height="32" viewBox="0 0 40 40" fill="none" opacity="0.25" style="position:relative"><rect x="4" y="4" width="32" height="32" rx="6" stroke="#8a7e6e" stroke-width="1.5"/><circle cx="14" cy="15" r="4" stroke="#8a7e6e" stroke-width="1.5"/><path d="M4 28 L12 20 L20 26 L28 18 L36 26" stroke="#8a7e6e" stroke-width="1.5" fill="none"/></svg>
-               <span style="position:relative;font-size:11px;opacity:0.5;">drop or click to add illustration</span>`}
+          <svg width="32" height="32" viewBox="0 0 40 40" fill="none" opacity="0.25" style="position:relative"><rect x="4" y="4" width="32" height="32" rx="6" stroke="#8a7e6e" stroke-width="1.5"/><circle cx="14" cy="15" r="4" stroke="#8a7e6e" stroke-width="1.5"/><path d="M4 28 L12 20 L20 26 L28 18 L36 26" stroke="#8a7e6e" stroke-width="1.5" fill="none"/></svg>
+          <span style="position:relative;font-size:11px;opacity:0.5;">drop or click to add illustration</span>
         </div>
         ${hasImg ? `<div class="img-overlay">
           <button class="img-overlay-btn" onclick="triggerImgUpload(${p.page})">Replace</button>
@@ -694,6 +637,9 @@ function renderBook(book) {
         <input type="file" accept="image/*" onchange="handlePageImageUpload(event,${p.page})" id="img-input-${p.page}">
       </div>
       <div class="page-body">
+        ${(p.characters_on_page||[]).length
+          ? `<div class="page-chars">${(p.characters_on_page||[]).map(n=>`<span class="page-char-tag">${escHtml(n)}</span>`).join('')}</div>`
+          : ''}
         <div class="page-text">${escHtml(p.text)}</div>
         <div class="prompt-toggle" onclick="togglePrompt(this)"><span class="arr">▶</span> Image prompt</div>
         <div class="prompt-text-box">${escHtml(prompt)}</div>
