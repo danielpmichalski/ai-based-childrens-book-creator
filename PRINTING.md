@@ -162,19 +162,19 @@ portrait sheet folding at the top, which is exactly the case short-edge
 duplex exists for. The default long-edge option (`DuplexNoTumble`) will
 print every back side upside-down relative to its front.
 
-### Borderless and duplex don't combine (Brother DCP-T735DW)
+### Borderless and duplex may not combine
 
-The PPD lists `A4.Fullbleed` and `DuplexTumble` with no `UIConstraints`, but
-in practice the printer **ignores duplex when the page size is borderless**:
-with `media=A4.Fullbleed` it prints one side and ejects the sheet, with
-plain `media=A4` it pulls the sheet back in for the second side.
-
-So you have to choose:
+Some printers silently ignore duplex (and sometimes the quality setting)
+when the page size is borderless, even though the PPD lists no constraint.
+Test it with one scrap sheet. If yours does, you have to choose:
 
 - **Automatic duplex** with plain `A4` — one print run, but a thin white rim
   of unprintable margin remains on every edge.
 - **Manual duplex** with `A4.Fullbleed` — print the fronts, reload, print the
   backs. True edge-to-edge art, but you handle each sheet twice.
+
+The Brother DCP-T735DW does exactly this; see
+[DCP_T735DW.md](DCP_T735DW.md) for what we found and which commands work.
 
 ## 4. Print commands
 
@@ -211,14 +211,19 @@ Test the scrap-paper booklet run the same way but with `MediaType=stationery`
 the `_debug` PDF instead of your good stock. This verified the page order,
 tumble direction and stapling on a full 5-sheet book.
 
-### Manual duplex, borderless (untested)
+### Manual duplex, borderless
 
 For a booklet without the white rim: print every front side borderless,
 reload the stack, then print every back side borderless. The booklet PDF is
 already laid out as front, back, front, back, … so the odd pages are the
-fronts and the even pages the backs. **This procedure has not been verified
-yet** — do the whole thing with the `_debug` PDF on scrap paper first, and
-adjust the reload step until the folded result reads in order.
+fronts and the even pages the backs.
+
+**Reloading:** how the printed sheets must go back into the drawer depends
+on the printer. Find the right way with a pencil-marked scrap sheet (page 1
+as the front, page 2 as the back), then run the whole `_debug` PDF this way
+on scrap paper and check that each back lands on the right front. For the
+Brother DCP-T735DW the sheets go back exactly as they came out, with no
+rotating or flipping ([DCP_T735DW.md](DCP_T735DW.md)).
 
 ```sh
 # 1. Fronts (odd pages), borderless, single-sided
@@ -242,12 +247,8 @@ lp -d <PrinterQueueName> \
    "your-book_booklet.pdf"
 ```
 
-Things the scrap test has to settle, since they depend on how the tray feeds:
+Things the full-stack scrap test still has to settle:
 
-- **Which way up to reload.** The back sides are laid out for a short-edge
-  flip: turn each sheet over like a calendar page (top edge becomes bottom
-  edge). Mark one corner of a scrap sheet with a pencil and note which
-  orientation puts the back right-way-up behind the front.
 - **Sheet order.** If the backs end up on the wrong fronts, the stack came
   out reversed. Add `-o outputorder=reverse` to the first command (or reload
   the stack in the other order) and re-test.
@@ -289,3 +290,5 @@ mm or two on every edge to avoid a white sliver, which is normal.
 ## Files in this repo related to printing
 
 - `scripts/make_booklet.py` — the A5 booklet imposition script (§2).
+- [`DCP_T735DW.md`](DCP_T735DW.md) — Brother DCP-T735DW specifics: driver
+  options, borderless/duplex/quality limitations, manual-duplex reload.
