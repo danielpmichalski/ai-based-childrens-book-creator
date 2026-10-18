@@ -13,6 +13,10 @@ Usage:
     --debug   Stamp each slot with its source page number (or "BLANK") in
               small red text, for a cheap scrap-paper test print before
               committing good paper. Omit for the final print.
+    --no-blank-after-cover
+              By default a blank page is inserted after the front cover
+              (inside of the cover), so the first story page opens at the
+              bottom of the first spread. This turns that off.
 
 Fold model
 ----------
@@ -51,20 +55,27 @@ A4_W, A4_H = 595.28, 841.89  # A4 portrait, points
 HALF_H = A4_H / 2
 
 
-def build_booklet(src, debug=False):
+def build_booklet(src, debug=False, blank_after_cover=True):
     n_real = src.page_count
-    n = n_real
-    while n % 4 != 0:
-        n += 1
-    n_blank = n - n_real
-    print(f"Source pages: {n_real}, padded to {n} ({n_blank} blank pages appended)")
+    # Book pages in reading order: source page number, or None for a blank.
+    # The blank after the cover makes the first open spread (inside cover on
+    # top, page below) show the first story page at the BOTTOM, not the top.
+    pages = list(range(1, n_real + 1))
+    if blank_after_cover and n_real > 1:
+        pages.insert(1, None)
+    n_inserted = len(pages) - n_real
+    while len(pages) % 4 != 0:
+        pages.append(None)
+    n = len(pages)
+    print(f"Source pages: {n_real}, padded to {n} ({n - n_real} blank pages added, {n_inserted} after the cover)")
 
     out = fitz.open()
 
     def place(page, page_no, rect):
-        if page_no is not None and page_no <= n_real:
-            page.show_pdf_page(rect, src, page_no - 1)
-            label = str(page_no)
+        src_no = pages[page_no - 1]
+        if src_no is not None:
+            page.show_pdf_page(rect, src, src_no - 1)
+            label = str(src_no)
         else:
             label = "BLANK"
         if debug:
@@ -76,12 +87,12 @@ def build_booklet(src, debug=False):
         back_top, back_bottom = 2 * i + 2, n - 2 * i - 1
 
         p = out.new_page(width=A4_W, height=A4_H)
-        place(p, front_top if front_top <= n_real else None, fitz.Rect(0, 0, A4_W, HALF_H))
-        place(p, front_bottom if front_bottom <= n_real else None, fitz.Rect(0, HALF_H, A4_W, A4_H))
+        place(p, front_top, fitz.Rect(0, 0, A4_W, HALF_H))
+        place(p, front_bottom, fitz.Rect(0, HALF_H, A4_W, A4_H))
 
         p = out.new_page(width=A4_W, height=A4_H)
-        place(p, back_top if back_top <= n_real else None, fitz.Rect(0, 0, A4_W, HALF_H))
-        place(p, back_bottom if back_bottom <= n_real else None, fitz.Rect(0, HALF_H, A4_W, A4_H))
+        place(p, back_top, fitz.Rect(0, 0, A4_W, HALF_H))
+        place(p, back_bottom, fitz.Rect(0, HALF_H, A4_W, A4_H))
 
     print(f"-> {out.page_count} output pages = {sheets} duplex sheets")
     return out
@@ -92,10 +103,11 @@ def main():
     ap.add_argument("input", help="Source PDF from the app's Print/Save PDF button (one landscape A4 page per book page)")
     ap.add_argument("-o", "--output", help="Output path (default: INPUT_booklet.pdf next to the input, or INPUT_booklet_debug.pdf with --debug)")
     ap.add_argument("--debug", action="store_true", help="Stamp page numbers on each slot for a scrap-paper test print")
+    ap.add_argument("--no-blank-after-cover", action="store_true", help="Don't insert a blank page after the front cover")
     args = ap.parse_args()
 
     src = fitz.open(args.input)
-    out = build_booklet(src, debug=args.debug)
+    out = build_booklet(src, debug=args.debug, blank_after_cover=not args.no_blank_after_cover)
 
     if args.output:
         out_path = args.output
