@@ -72,6 +72,11 @@ Saddle-stitch also requires the page count to be a multiple of 4 (each
 folded sheet always carries exactly 4 pages). The script pads the end of
 the book with blank pages automatically.
 
+The script also inserts one **blank page right after the front cover**
+(the inside of the cover). Opening the booklet then shows the blank on top
+and the first story page at the bottom of the spread, instead of the story
+starting on the top half. Pass `--no-blank-after-cover` to turn this off.
+
 ### Setup
 
 ```sh
@@ -93,8 +98,8 @@ python3 -m venv .venv
 Default output is `your-book_booklet.pdf` (or `..._booklet_debug.pdf`)
 next to the input; pass `-o path/to/output.pdf` to choose your own.
 
-Output is always `ceil(pages/4)` double-sided A4 sheets (e.g. 9 source
-pages → padded to 12 → 3 sheets).
+Output is always `ceil((pages + 1)/4)` double-sided A4 sheets, counting the
+blank after the cover (e.g. 17 source pages → 18 → padded to 20 → 5 sheets).
 
 ### Validate before using good paper
 
@@ -104,9 +109,9 @@ pages → padded to 12 → 3 sheets).
 2. Stack the sheets in the order they printed (sheet 1 outermost) and
    fold the whole stack in half at once, horizontally.
 3. Flip through it front to back: the little red numbers should read in
-   order 1, 2, 3, … with the cover (page 1) as the very first thing you
-   see, and "BLANK" pages only at the very front/back or fully hidden
-   inside — never interrupting the story sequence.
+   order 1, BLANK, 2, 3, … with the cover (page 1) as the very first thing
+   you see, a blank inside the cover, and the remaining "BLANK" pages only
+   at the very end — never interrupting the story sequence.
 4. If it doesn't read in order, don't print the real thing — something's
    off in the fold/duplex direction, not the imposition math (rerun
    through the checklist in §3 before re-testing).
@@ -157,6 +162,20 @@ portrait sheet folding at the top, which is exactly the case short-edge
 duplex exists for. The default long-edge option (`DuplexNoTumble`) will
 print every back side upside-down relative to its front.
 
+### Borderless and duplex don't combine (Brother DCP-T735DW)
+
+The PPD lists `A4.Fullbleed` and `DuplexTumble` with no `UIConstraints`, but
+in practice the printer **ignores duplex when the page size is borderless**:
+with `media=A4.Fullbleed` it prints one side and ejects the sheet, with
+plain `media=A4` it pulls the sheet back in for the second side.
+
+So you have to choose:
+
+- **Automatic duplex** with plain `A4` — one print run, but a thin white rim
+  of unprintable margin remains on every edge.
+- **Manual duplex** with `A4.Fullbleed` — print the fronts, reload, print the
+  backs. True edge-to-edge art, but you handle each sheet twice.
+
 ## 4. Print commands
 
 Single page-per-sheet (no booklet), full-bleed A4 landscape, on satin
@@ -173,8 +192,9 @@ lp -d <PrinterQueueName> \
    "your-book.pdf"
 ```
 
-A5 booklet, double-sided, on satin copier paper (run only after the
-scrap test in §2 reads correctly):
+A5 booklet, automatic duplex, on satin copier paper (run only after the
+scrap test in §2 reads correctly). Uses plain `A4`, so expect the white rim
+described in §3:
 
 ```sh
 lp -d <PrinterQueueName> \
@@ -187,7 +207,53 @@ lp -d <PrinterQueueName> \
 ```
 
 Test the scrap-paper booklet run the same way but with `MediaType=stationery`
-(plain paper) and the `_debug` PDF instead of your good stock.
+(plain paper), `cupsPrintQuality=Draft` (much faster, uses little ink) and
+the `_debug` PDF instead of your good stock. This verified the page order,
+tumble direction and stapling on a full 5-sheet book.
+
+### Manual duplex, borderless (untested)
+
+For a booklet without the white rim: print every front side borderless,
+reload the stack, then print every back side borderless. The booklet PDF is
+already laid out as front, back, front, back, … so the odd pages are the
+fronts and the even pages the backs. **This procedure has not been verified
+yet** — do the whole thing with the `_debug` PDF on scrap paper first, and
+adjust the reload step until the folded result reads in order.
+
+```sh
+# 1. Fronts (odd pages), borderless, single-sided
+lp -d <PrinterQueueName> \
+   -o media=A4.Fullbleed \
+   -o MediaType=stationery-inkjet \
+   -o ColorModel=RGB \
+   -o cupsPrintQuality=High \
+   -o Duplex=None \
+   -o page-set=odd \
+   "your-book_booklet.pdf"
+
+# 2. Reload the printed stack (see below), then the backs (even pages)
+lp -d <PrinterQueueName> \
+   -o media=A4.Fullbleed \
+   -o MediaType=stationery-inkjet \
+   -o ColorModel=RGB \
+   -o cupsPrintQuality=High \
+   -o Duplex=None \
+   -o page-set=even \
+   "your-book_booklet.pdf"
+```
+
+Things the scrap test has to settle, since they depend on how the tray feeds:
+
+- **Which way up to reload.** The back sides are laid out for a short-edge
+  flip: turn each sheet over like a calendar page (top edge becomes bottom
+  edge). Mark one corner of a scrap sheet with a pencil and note which
+  orientation puts the back right-way-up behind the front.
+- **Sheet order.** If the backs end up on the wrong fronts, the stack came
+  out reversed. Add `-o outputorder=reverse` to the first command (or reload
+  the stack in the other order) and re-test.
+- **Feeding twice.** Coated 160 g satin paper can curl or jam on the second
+  pass. Let the fronts dry fully first, and feed one or two sheets at a
+  time if it misfeeds.
 
 Always send a one-page test (`-o page-ranges=1`) on scrap paper first
 when trying a printer/paper combination for the first time, to check
@@ -207,9 +273,18 @@ mm or two on every edge to avoid a white sliver, which is normal.
   2, …), then clip along the **short (210mm) edge** on the left with the
   long-arm clipper — it flips like a picture book/flip-chart.
 - **A5 booklet layout:** stack the printed sheets in the order they came
-  out (sheet 1 on top/outermost), fold the whole stack in half at once
-  along the horizontal crease, and clip at the fold (the spine) with the
-  long-arm clipper in place of staples.
+  out (sheet 1 on top/outermost) and fold the whole stack in half at once
+  along the horizontal crease. On coated 160 g stock, score the crease
+  first (bone folder or the back of a knife) so the coating and ink don't
+  crack, or fold each sheet individually and nest them afterwards.
+- **Stapling:** open the folded stack flat and put the crease under the
+  long-arm stapler (the throat has to reach about 148.5 mm, half the
+  sheet's length). Staple through the crease at roughly ¼ and ¾ of its
+  210 mm length, from the inside so the prongs clinch inside the booklet.
+  A staple through the crease needs no extra inner margin. A 5-sheet book
+  is 10 layers of 160 g, roughly 20 sheets of ordinary 80 g paper, which is
+  close to a 25-sheet stapler's rating — a thicker book than that needs a
+  higher-capacity stapler or fewer pages.
 
 ## Files in this repo related to printing
 
